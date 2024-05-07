@@ -4,6 +4,8 @@ import pandas as pd
 import os
 import librosa
 from tqdm import tqdm
+from config import config
+config = config()
 
 def spectograms_with_csv(input_dir, output_dir, csv_path="spectogram.csv"):
     """
@@ -21,18 +23,33 @@ def spectograms_with_csv(input_dir, output_dir, csv_path="spectogram.csv"):
     print(f"Loading audio data from directory: {input_dir}")
 
     # Function to convert audio to Mel spectrogram and save as a NumPy binary file (.npy)
-    def audio_to_melspectrogram(audio, file_path):
+    def audio_to_melspectrogram(audio, file_path, longest_sequence):
         # Parameters for the spectrogram
-        S = librosa.feature.melspectrogram(y=audio, sr=8000, n_mels=128)
+        S = librosa.feature.melspectrogram(y=audio, sr=8000, n_mels=config.num_mels)
         log_S = librosa.power_to_db(S, ref=np.max)
         # Save the spectrogram as a NumPy binary file (.npy)
         np.save(file_path, log_S)
+        # Keep track of the longest sequence, will be used to pad spectograms
+        if log_S.shape[-1] >= longest_sequence:
+            longest_sequence = log_S.shape[-1]
+        return longest_sequence
+    
+    def pad_spectograms(spectrogram_path, longest_sequence):
+        spectogram = np.load(spectrogram_path)
+        # Calculate how much padding is desired 
+        padding_amount = longest_sequence - spectogram.shape[1]
+        # Append 0s to the spectogram array along axis 1
+        padded_spectogram = np.append(spectogram, np.zeros(shape=(spectogram.shape[0], padding_amount)), axis=1)
+        # Ensure that the padded sequence has the correct dimensions
+        assert padded_spectogram.shape[1] == longest_sequence
+        np.save(spectrogram_path, padded_spectogram)
 
     # Prepare to save spectrograms and paths/targets for CSV
     os.makedirs(output_dir, exist_ok=True)
     print(f"Creating spectograms and saving to {output_dir}...")
     paths = []
     targets = []
+    longest_sequence = 0
 
     # Process each file immediately as it is loaded
     shortest = 1000000
@@ -46,7 +63,8 @@ def spectograms_with_csv(input_dir, output_dir, csv_path="spectogram.csv"):
 
             # Construct the path for saving the spectrogram
             spectrogram_path = os.path.join(output_dir, f'spectrogram_{len(paths)}.npy')
-            audio_to_melspectrogram(audio_data, spectrogram_path)
+            longest_sequence = audio_to_melspectrogram(audio_data, spectrogram_path, longest_sequence)
+
             if len(audio_data) < shortest:
                 shortest = len(audio_data)
             if len(audio_data) > longest:
@@ -54,6 +72,10 @@ def spectograms_with_csv(input_dir, output_dir, csv_path="spectogram.csv"):
             # Append the path and target to lists
             paths.append(spectrogram_path)
             targets.append(valence)
+
+    print(f"Padding spectrograms according to the longest sequence: {longest_sequence}...")
+    for spectrogram_path in paths:
+        pad_spectograms(spectrogram_path, longest_sequence)
 
     print("Shortest audio: ", shortest, " samples, corresponding to ", shortest/8000, " seconds")
     print("Longest audio: ", longest, " samples, corresponding to ", longest/8000, " seconds")

@@ -24,9 +24,9 @@ class CustomDataset(Dataset):
         """
         Returns a spectogram and its label.
         """
-        spectogram_path = self.spectrogram_csv.iloc[idx, 0]
+        spectrogram_path = self.spectrogram_csv.iloc[idx, 0]
         label = self.spectrogram_csv.iloc[idx, 1]
-        spectrogram = np.load(spectogram_path)
+        spectrogram = np.load(spectrogram_path)
         spectrogram = torch.from_numpy(spectrogram)
         return spectrogram, label
         
