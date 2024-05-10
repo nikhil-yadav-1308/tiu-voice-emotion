@@ -2,4 +2,7 @@
 
 spectrograms/
 images/
+test/
+test_subset/
+train/
 preprocessed_data.csv
