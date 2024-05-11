@@ -15,7 +15,7 @@ torch.manual_seed(config.seed)
 np.random.seed(config.seed)
 
 # Call spectrograms_with_csv to create the padded spectrograms and csv
-input_dir = os.path.join("train_data", "train_subset")  # Directory to raw audio files
+input_dir = os.path.join("train")  # Directory to raw audio files
 output_dir = "mel_spectrograms"                         # Directory to store padded spectrograms
 csv_path = "mel_spectrograms.csv"                       # Path name to CSV file that holds paths and label
 

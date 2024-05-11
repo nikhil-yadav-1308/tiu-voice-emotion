@@ -3,3 +3,8 @@
 spectrograms/
 images/
 preprocessed_data.csv
+train/
+train.zip
+mel_spectrograms/
+__pycache__/
+runs/

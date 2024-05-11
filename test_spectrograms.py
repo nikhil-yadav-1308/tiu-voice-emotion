@@ -1,9 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+
+os.makedirs('images', exist_ok=True)
 
 # Load your spectrogram data
 for i in range(10):
-    spectrogram = np.load(f'spectrograms/spectrogram_{i}.npy')
+    spectrogram = np.load(f'mel_spectrograms/spectrogram_{i}.npy')
 
     # Number of samples and sampling rate
     total_samples = spectrogram.shape[1] * 512
