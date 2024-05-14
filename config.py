@@ -8,7 +8,7 @@ class config():
         self.seed = 132
         self.num_epochs = 5
         self.num_mels = 128
-        self.hidden_size = 256
+        self.hidden_size = 512
 
         # Dataloader parameters
         self.val_size = 0.3

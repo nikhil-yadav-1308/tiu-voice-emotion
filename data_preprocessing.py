@@ -39,7 +39,7 @@ def spectrograms_with_csv(input_dir, output_dir, csv_path="spectrogram.csv"):
         # Calculate how much padding is desired 
         padding_amount = longest_sequence - spectrogram.shape[1]
         # Append 0s to the spectrogram array along axis 1
-        padded_spectrogram = np.append(spectrogram, np.zeros(shape=(spectrogram.shape[0], padding_amount)), axis=1)
+        padded_spectrogram = np.append(spectrogram, np.zeros(shape=(spectrogram.shape[0], padding_amount))-80, axis=1)
         # Ensure that the padded sequence has the correct dimensions
         assert padded_spectrogram.shape[1] == longest_sequence
         np.save(spectrogram_path, padded_spectrogram)

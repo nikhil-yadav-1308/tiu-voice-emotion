@@ -7,25 +7,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from config import config
+
 config = config()
 
 # Set random seeds
 torch.manual_seed(config.seed)
 np.random.seed(config.seed)
 
+
 def trainer(train_dataloader, val_dataloader):
     """ Loops over all training epochs, saves the training and validation losses """
     start_time = datetime.now()
-    print("="*14, " Training started ", "="*14)
+    print("=" * 14, " Training started ", "=" * 14)
     # Setup model, optimizer, and criterion
-    model = nn.LSTM(input_size=config.num_mels, hidden_size=config.hidden_size, proj_size=1, bidirectional=False, batch_first=True, device=config.device)
+    model = nn.LSTM(input_size=config.num_mels, hidden_size=config.hidden_size, proj_size=1, bidirectional=True,
+                    batch_first=True, device=config.device)
     optimizer = torch.optim.Adam(model.parameters())
     criterion = nn.MSELoss()
 
     train_loss = []
     val_loss = []
     # Iterate over epochs
-    for i in range(1, config.num_epochs+1):
+    for i in range(1, config.num_epochs + 1):
         # model_train returns the epochs average training loss
         epoch_train_loss = model_train(train_dataloader, model, optimizer, criterion)
         # model_evaluate returns the epochs average validation loss
@@ -33,10 +36,9 @@ def trainer(train_dataloader, val_dataloader):
         train_loss.append(epoch_train_loss)
         val_loss.append(epoch_val_loss)
 
-        if i%5==0:
-            print(f"Epoch {i}:\nTrain loss: {epoch_train_loss:.4f}\t|\tVal loss: {epoch_val_loss:.4f}")
-    print("="*14, f" Training finished ", "="*14)
-    
+        print(f"Epoch {i}:\nTrain loss: {epoch_train_loss:.4f}\t|\tVal loss: {epoch_val_loss:.4f}")
+    print("=" * 14, f" Training finished ", "=" * 14)
+
     # Save the model, losses, and a plot of the training and validation loss
     output_path = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     print(f"Saving model and losses to: {output_path}")
@@ -50,32 +52,32 @@ def trainer(train_dataloader, val_dataloader):
     os.makedirs(os.path.join(output_path, "losses"), exist_ok=True)
     torch.save(torch.tensor(train_loss), f=os.path.join(output_path, "losses", "train.pt"))
     torch.save(torch.tensor(val_loss), f=os.path.join(output_path, "losses", "val.pt"))
-    
+
     plt.figure(figsize=(8, 4))
-    plt.plot(np.arange(1, len(train_loss)+1), train_loss, color="#0074D9", label="train loss")
-    plt.plot(np.arange(1, len(val_loss)+1), val_loss, color="#FF851B", label="val loss")
+    plt.plot(np.arange(1, len(train_loss) + 1), train_loss, color="#0074D9", label="train loss")
+    plt.plot(np.arange(1, len(val_loss) + 1), val_loss, color="#FF851B", label="val loss")
     plt.xlabel('Time')
     plt.ylabel('Value')
     plt.title('Losses over Training')
     plt.legend()
     plt.savefig(os.path.join(output_path, "losses", "loss_plot.png"))
-    
-    print(f"Training time: {datetime.now()-start_time}")
+
+    print(f"Training time: {datetime.now() - start_time}")
 
 
 def model_train(train_dataloader, model, optimizer, criterion):
     """ Runs one epoch of training by looping over batches in train_dataloader, 
         computing the loss and updating the models parameters   """
-    
+
     train_loss = 0
-    batch_idx = np.arange(config.batch_size) # Needed for indexing
-    model.train() # Put the model in training mode
+    batch_idx = np.arange(config.batch_size)  # Needed for indexing
+    model.train()  # Put the model in training mode
 
     for i, (batch, labels) in enumerate(train_dataloader, start=1):
         # >> a batch is (batch_size, num_mels, global_max_seq_length)
         # global_max_seq_length refers to the longest sequence out of all spectrograms
-        
-        optimizer.zero_grad() # Zero out gradients
+
+        optimizer.zero_grad()  # Zero out gradients
 
         labels = labels.to(config.device).to(torch.float32)
         batch = batch.transpose(1, -1).to(config.device)
@@ -95,7 +97,7 @@ def model_train(train_dataloader, model, optimizer, criterion):
         # >> (batch_size, max_seq_length, proj_size)
 
         # To derive the last output for batch i, select the index: length[i]-1
-        predictions = outputs[batch_idx, lengths-1, 0]
+        predictions = outputs[batch_idx, lengths - 1, 0]
         # print(f"Shape of predictions: {predictions.shape}")
         # >> (batch_size, 1)
 
@@ -103,20 +105,21 @@ def model_train(train_dataloader, model, optimizer, criterion):
         loss = criterion(predictions, labels)
         train_loss += loss.item()
         # print(f"Batch {i} train loss: {loss:.4f}")
-        
+
         # Compute gradients and update model parameters
         loss.backward()
         optimizer.step()
 
     # Normalize total MSE by the number of batches
-    return train_loss/i
+    return train_loss / i
+
 
 def model_evaluate(val_dataloader, model, criterion):
     """ Evaluates the model's performance on the validation set """
 
-    batch_idx = np.arange(config.batch_size) # Needed for indexing
+    batch_idx = np.arange(config.batch_size)  # Needed for indexing
     val_loss = 0
-    model.eval() # Put the model in evaluation mode
+    model.eval()  # Put the model in evaluation mode
 
     with torch.no_grad():
         for i, (batch, labels) in enumerate(val_dataloader, start=1):
@@ -138,22 +141,23 @@ def model_evaluate(val_dataloader, model, criterion):
             # >> (batch_size, max_seq_length, proj_size)
 
             # To derive the last output for batch i, select the index: length[i]-1
-            predictions = outputs[batch_idx, lengths-1, 0]
+            predictions = outputs[batch_idx, lengths - 1, 0]
 
             # Compute the MSE loss
             loss = criterion(predictions, labels)
             val_loss += loss.item()
 
         # Normalize MSE by the number of batches
-        return val_loss/i
+        return val_loss / i
+
 
 def get_packed_padded_sequence(batch):
     """ Takes a batch of shape (batch_size, max_seq_length, num_mels) 
         and turns it into a PackedSequence object for efficient training """
-    
+
     # Compute the length of non-padded entries for each batch
-    lengths = (batch[:, :, 0]!=0).sum(dim=-1).long()
-    lengths = lengths.cpu() # Must be on the cpu
+    lengths = (batch[:, :, 0] != 0).sum(dim=-1).long()
+    lengths = lengths.cpu()  # Must be on the cpu
     # >> (64) where each entry contains the non-padded length of that batch
     # print(f"max sequence length for this batch: {max(lengths)}")
 
@@ -162,7 +166,7 @@ def get_packed_padded_sequence(batch):
 
     # Call pack_padded_sequence with the batch and lengths
     batch_packed = pack_padded_sequence(batch, lengths, batch_first=True, enforce_sorted=False)
-    
+
     return batch_packed.float()
     # The resulting batch_packed is of shape: (timesteps, num_mels) 
     # Where timesteps is the total number of non-padded timesteps over all samples in the batch

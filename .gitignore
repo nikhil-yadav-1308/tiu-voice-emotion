@@ -5,4 +5,5 @@ images/
 test/
 test_subset/
 train/
+mel_spectrograms/
 preprocessed_data.csv

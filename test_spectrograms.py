@@ -3,15 +3,15 @@ import matplotlib.pyplot as plt
 
 # Load your spectrogram data
 for i in range(10):
-    spectrogram = np.load(f'spectrograms/spectrogram_{i}.npy')
+    spectrogram = np.load(f'mel_spectrograms_var/spectrogram_{i}.npy')
 
     # Number of samples and sampling rate
-    total_samples = spectrogram.shape[1] * 512
+    total_samples = spectrogram.shape[1] * 128
     sampling_rate = 8000
 
     # Calculate time per frame
-    n_fft = 2048
-    hop_length = 512  # or adjust if you used a different value
+    n_fft = 512
+    hop_length = 128  # or adjust if you used a different value
     time_per_frame = hop_length / sampling_rate
     total_time = total_samples / sampling_rate
 
