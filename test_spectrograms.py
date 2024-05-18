@@ -5,7 +5,7 @@ import os
 os.makedirs('images', exist_ok=True)
 
 # Load your spectrogram data
-for i in range(10):
+for i in range(1000, 2000):
     spectrogram = np.load(f'mel_spectrograms/spectrogram_{i}.npy')
 
     # Number of samples and sampling rate

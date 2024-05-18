@@ -6,15 +6,16 @@ import torch.optim as optim
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import pandas as pd
+from torchviz import make_dot
+
 from mel_config import MelConfig
-from mel_dataloader import data_generator, MelTestDataset
+from mel_dataloader import data_generator
 from mel_model import MelCNN, MelCNNAdapt
-from mel_resnet import ResNet
-from time import time
 
 config = MelConfig()
 torch.manual_seed(config.seed)
 np.random.seed(config.seed)
+
 
 # Call spectrograms_with_csv to create the padded spectrograms and csv
 input_dir = os.path.join("../train")  # Directory to raw audio files
@@ -61,7 +62,6 @@ def train(model, criterion, optimizer, num_epochs):
             print(f"Validation Set: Epoch [{epoch + 1}/{num_epochs}], Loss: {val_loss_epoch:.4f}")
             val_loss_list.append(val_loss_epoch)
 
-        # Get train results
         if val_loss_epoch < best_loss:
             data = []
             with torch.no_grad():
@@ -74,55 +74,49 @@ def train(model, criterion, optimizer, num_epochs):
             data = pd.DataFrame(data, columns=['ID', 'Label'])
             data.to_csv('results.csv', index=False)
             best_loss = val_loss_epoch
+            torch.save(model, './model.model')
 
     print(val_outputs.reshape(1, -1))
     print(val_targets.reshape(1, -1))
     return train_loss_list, val_loss_list, best_loss
 
 
-def tune_models():
-    # Setting Hyperparameters
-    num_epochs = 30
-    tune_data = pd.DataFrame(columns=['lr', 'weight_decay', "layer1_kernel_size", "layer1_stride", "layer1_out_channels",
-                                      'max_pool1_kernel', 'max_pool1_stride',
-                                      "layer2_kernel_size", "layer2_stride", "layer2_out_channels",
-                                      'adapt_pool1', 'adapt_pool2',
-                                      'fc1_out', 'best_loss'])
-    for i in range(100):
+# Setting Hyperparameters
+num_epochs = 60
 
-        lr = np.random.choice([0.01, 0.001, 0.005, 0.0001])
-        weight_decay = np.random.choice([0.001, 0.005, 0.0001])
-        layer1_kernel_size = np.random.choice([8,10,12,15, 20])
-        layer1_stride = np.random.choice([2,3,4,5])
-        layer1_out_channels = np.random.choice([16,32,64,128])
-        max_pool1_kernel = np.random.choice([3,4,5])
-        max_pool1_stride = np.random.choice([2,3])
-        layer2_kernel_size = np.random.choice([3,5,8,10])
-        layer2_stride = np.random.choice([2,3,4])
-        layer2_out_channels = np.random.choice([16,32,64])
-        adapt_pool1 = np.random.choice([4,8,10])
-        adapt_pool2 = np.random.choice([4,8,10])
-        fc1_out = np.random.choice([8, 16, 32])
+# Using tuned parameters from mel_main.py
+model = MelCNNAdapt(layer1_kernel_size=10, layer1_stride=4, layer1_out_channels=64,
+                    max_pool1_kernel=3, max_pool1_stride=3,
+                    layer2_kernel_size=8, layer2_stride=2, layer2_out_channels=16,
+                    adapt_pool1=8, adapt_pool2=8,
+                    fc1_out=32).to(config.device)
 
-        model = MelCNNAdapt(layer1_kernel_size=layer1_kernel_size, layer1_stride=layer1_stride, layer1_out_channels=layer1_out_channels,
-                            max_pool1_kernel=max_pool1_kernel, max_pool1_stride=max_pool1_stride,
-                            layer2_kernel_size=layer2_kernel_size, layer2_stride=layer2_stride, layer2_out_channels=layer2_out_channels,
-                            adapt_pool1=adapt_pool1, adapt_pool2=adapt_pool2,
-                            fc1_out=fc1_out).to(config.device)
-        criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-        train_loss_list, val_loss_list, best_loss = train(model, criterion, optimizer, num_epochs)
-
-        # plt.plot(range(num_epochs-5), train_loss_list[5:])
-        # plt.plot(range(num_epochs-5), val_loss_list[5:])
-        # plt.show()
-
-        tune_data.loc[i] = [lr, weight_decay, layer1_kernel_size, layer1_stride, layer1_out_channels,
-                            max_pool1_kernel, max_pool1_stride,
-                            layer2_kernel_size, layer2_stride, layer2_out_channels,
-                            adapt_pool1, adapt_pool2,
-                            fc1_out, best_loss]
-        tune_data.to_csv('tuning.csv', index=False)
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=0.0005)
+train_loss_list, val_loss_list, best_loss = train(model, criterion, optimizer, num_epochs)
 
 
-tune_models()
+# plt.plot(range(num_epochs-5), train_loss_list[5:])
+# plt.plot(range(num_epochs-5), val_loss_list[5:])
+# plt.show()
+
+data = pd.DataFrame({'train_loss': train_loss_list,
+     'val_loss': val_loss_list
+})
+data.to_csv('loss.csv', index=False)
+print(data)
+
+# Get valence for Test data
+results = []
+with torch.no_grad():
+    for test_inputs, files in test_loader:
+        test_inputs = test_inputs.to(config.device)
+        test_inputs = F.normalize(test_inputs, dim=0)
+        test_outputs = model(test_inputs)
+        # print('asdsad')
+        test_outputs = np.array(test_outputs.squeeze(1).cpu())
+        results.extend(list(zip(files, test_outputs)))
+
+results = pd.DataFrame(results, columns=['ID', 'Label'])
+results.to_csv('results.csv', index=False)
+# print(data)

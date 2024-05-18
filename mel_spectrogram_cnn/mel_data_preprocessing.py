@@ -20,18 +20,6 @@ def load_pickle(file_path):
 def audio_to_melspectrogram(audio, file_path, longest_sequence):
     S = melspectrogram(y=audio, sr=8000, n_mels=config.num_mels, hop_length=config.hop_length)
     log_S = power_to_db(S, ref=np.max)
-    # print(np.mean(log_S))
-    # To see spectrogram
-    # plt.figure(figsize=(10, 8))
-    # plt.imshow(log_S, aspect='auto', origin='lower', extent=[0, S.shape[1]*config.hop_length/8000, 0, S.shape[0]])
-    # plt.title('Mel Spectrogram')
-    # plt.xlabel('Time (seconds)')
-    # plt.ylabel('Frequency')
-    # plt.colorbar(format='%+2.0f dB')
-    # plt.tight_layout()
-    # plt.show()
-    # break
-
     # Save the spectrogram as a NumPy binary file (.npy)
     np.save(file_path, log_S)
     # Keep track of the longest sequence, will be used to pad the spectrograms
@@ -46,18 +34,13 @@ def pad_spectrograms(spectrogram_path, longest_sequence):
     padding_amount = longest_sequence - spectrogram.shape[1]
     # Append 0s to the spectrogram array along axis 1
     # print(np.mean(spectrogram))
-    padded_spectrogram = np.append(spectrogram, np.zeros(shape=(spectrogram.shape[0], padding_amount)) + np.mean(spectrogram), axis=1)
+    padded_spectrogram = np.append(spectrogram, np.zeros(shape=(spectrogram.shape[0], padding_amount)), axis=1)
     # Ensure that the padded sequence has the correct dimensions
     assert padded_spectrogram.shape[1] == longest_sequence
     np.save(spectrogram_path, padded_spectrogram)
 
 
 def spectrograms_with_csv(input_dir, output_dir, csv_path="spectrogram.csv"):
-    """
-    input_dir: directory to the raw audio files
-    output_dir: directory to save the generated spectrograms
-    csv_path: path name of the csv file
-    """
     # Load data from input directory
     print(f"Loading audio data from directory: {input_dir}")
 
@@ -110,11 +93,6 @@ def spectrograms_with_csv(input_dir, output_dir, csv_path="spectrogram.csv"):
 
 
 def spectrograms_with_csv_test(input_dir, output_dir, csv_path="spectrogram.csv", longest_sequence=0):
-    """
-    input_dir: directory to the raw audio files
-    output_dir: directory to save the generated spectrograms
-    csv_path: path name of the csv file
-    """
     # Load data from input directory
     print(f"Loading audio data from directory: {input_dir}")
 
@@ -164,43 +142,20 @@ def spectrograms_with_csv_test(input_dir, output_dir, csv_path="spectrogram.csv"
 
 np.random.seed(config.seed)
 
-# Call spectrograms_with_csv to create the padded spectrograms and csv
+# Call spectrograms_with_csv to create the padded spectrograms and csv and track the longest sequence length
 input_dir = "../train/"
 output_dir = "../mel_spectrograms"
 csv_path = "./mel_spectrograms.csv"
-
 longest_sequence = spectrograms_with_csv(input_dir=input_dir,
                      output_dir=output_dir,
                      csv_path=csv_path)
 
+
 test_input_dir = "../test/"
 test_output_dir = "../mel_spectrograms_test"
 test_csv_path = "./mel_spectrograms_test.csv"
-
+# Use longest sequence length for padding Test data
 spectrograms_with_csv_test(input_dir=test_input_dir,
                      output_dir=test_output_dir,
                      csv_path=test_csv_path,
                      longest_sequence=longest_sequence)
-
-
-
-
-
-
-# # Call spectrograms_with_csv to create the padded spectrograms and csv
-# input_dir = "../train/"
-# output_dir = "../mel_spectrograms_var"
-# csv_path = "./mel_spectrograms_var.csv"
-#
-# longest_sequence = spectrograms_with_csv(input_dir=input_dir,
-#                      output_dir=output_dir,
-#                      csv_path=csv_path)
-#
-# test_input_dir = "../test/"
-# test_output_dir = "../mel_spectrograms_test_var"
-# test_csv_path = "./mel_spectrograms_test_var.csv"
-#
-# spectrograms_with_csv_test(input_dir=test_input_dir,
-#                      output_dir=test_output_dir,
-#                      csv_path=test_csv_path,
-#                      longest_sequence=longest_sequence)
