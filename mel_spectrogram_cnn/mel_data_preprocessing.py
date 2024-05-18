@@ -20,7 +20,7 @@ def load_pickle(file_path):
 def audio_to_melspectrogram(audio, file_path, longest_sequence):
     S = melspectrogram(y=audio, sr=8000, n_mels=config.num_mels, hop_length=config.hop_length)
     log_S = power_to_db(S, ref=np.max)
-
+    # print(np.mean(log_S))
     # To see spectrogram
     # plt.figure(figsize=(10, 8))
     # plt.imshow(log_S, aspect='auto', origin='lower', extent=[0, S.shape[1]*config.hop_length/8000, 0, S.shape[0]])
@@ -45,7 +45,8 @@ def pad_spectrograms(spectrogram_path, longest_sequence):
     # Calculate how much padding is desired
     padding_amount = longest_sequence - spectrogram.shape[1]
     # Append 0s to the spectrogram array along axis 1
-    padded_spectrogram = np.append(spectrogram, np.zeros(shape=(spectrogram.shape[0], padding_amount)) - 80, axis=1)
+    # print(np.mean(spectrogram))
+    padded_spectrogram = np.append(spectrogram, np.zeros(shape=(spectrogram.shape[0], padding_amount)) + np.mean(spectrogram), axis=1)
     # Ensure that the padded sequence has the correct dimensions
     assert padded_spectrogram.shape[1] == longest_sequence
     np.save(spectrogram_path, padded_spectrogram)

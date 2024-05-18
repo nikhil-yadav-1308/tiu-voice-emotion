@@ -68,56 +68,52 @@ class MelCNN(nn.Module):
 
 
 class MelCNNAdapt(nn.Module):
-    def __init__(self):
+    def __init__(self, layer1_kernel_size=10, layer1_stride=4, layer1_out_channels=64,
+                 max_pool1_kernel=3, max_pool1_stride=3,
+                 layer2_kernel_size=5, layer2_stride=2, layer2_out_channels=16,
+                 adapt_pool1=8, adapt_pool2=8,
+                 fc1_out=32):
         super(MelCNNAdapt, self).__init__()
-        self.relu = nn.ReLU()
+        self.lrelu = nn.LeakyReLU()
 
-        layer1_kernel_size = 10
-        layer1_stride = 4
-        self.layer1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=layer1_kernel_size, stride=layer1_stride)
-        self.batch_norm1 = nn.BatchNorm2d(num_features=64)
+        self.layer1 = nn.Conv2d(in_channels=1, out_channels=layer1_out_channels, kernel_size=layer1_kernel_size, stride=layer1_stride)
+        self.batch_norm1 = nn.BatchNorm2d(num_features=layer1_out_channels)
 
-        max_pool1_kernel = 3
-        max_pool1_stride = 3
         self.max_pool1 = nn.MaxPool2d(kernel_size=max_pool1_kernel, stride=max_pool1_stride)
 
-        layer2_kernel_size = 5
-        layer2_stride = 2
-        self.layer2 = nn.Conv2d(in_channels=64, out_channels=16, kernel_size=layer2_kernel_size, stride=layer2_stride)
-        self.batch_norm2 = nn.BatchNorm2d(num_features=16)
+        self.layer2 = nn.Conv2d(in_channels=layer1_out_channels, out_channels=layer2_out_channels, kernel_size=layer2_kernel_size, stride=layer2_stride)
+        self.batch_norm2 = nn.BatchNorm2d(num_features=layer2_out_channels)
 
-        self.adapt_pool = nn.AdaptiveAvgPool2d((8, 8))
+        self.adapt_pool = nn.AdaptiveAvgPool2d((adapt_pool1, adapt_pool2))
 
-        self.fc1 = nn.Linear(16 * 8 * 8, 32)
-        self.batch_norm3 = nn.BatchNorm1d(num_features=32)
+        self.fc1 = nn.Linear(layer2_out_channels * adapt_pool1 * adapt_pool2, fc1_out)
+        self.batch_norm3 = nn.BatchNorm1d(num_features=fc1_out)
 
-        self.fc3 = nn.Linear(32, 1)
+        self.fc2 = nn.Linear(fc1_out, 1)
         self.float()
 
     def forward(self, x):
         # print(x.shape)
         x = self.layer1(x)
-        x = self.relu(x)
-        x = self.max_pool1(x)
         x = self.batch_norm1(x)
+        x = self.lrelu(x)
+        x = self.max_pool1(x)
 
         # print(x.shape)
         x = self.layer2(x)
-        x = self.relu(x)
-        x = self.adapt_pool(x)
         x = self.batch_norm2(x)
+        x = self.lrelu(x)
 
-        # print(x.shape)
+        x = self.adapt_pool(x)
+
         x = x.view(x.size(0), -1)  # Flatten
         x = self.fc1(x)
-        x = self.relu(x)
         x = self.batch_norm3(x)
+        x = self.lrelu(x)
 
-        # print(x.shape)
-        x = self.fc3(x)
-        x = self.relu(x)
-        # print(x.shape)
+        x = self.fc2(x)
         return x
+
 
 # Best Parameters
 # layer1_kernel_size = 10
