@@ -6,16 +6,15 @@ import torch.optim as optim
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import pandas as pd
-from torchviz import make_dot
-
 from mel_config import MelConfig
 from mel_dataloader import data_generator
-from mel_model import MelCNN, MelCNNAdapt
+from mel_model import MelResBlock, MelResNet
+from torchviz import make_dot
+import pydot
 
 config = MelConfig()
 torch.manual_seed(config.seed)
 np.random.seed(config.seed)
-
 
 # Call spectrograms_with_csv to create the padded spectrograms and csv
 input_dir = os.path.join("../train")  # Directory to raw audio files
@@ -74,7 +73,6 @@ def train(model, criterion, optimizer, num_epochs):
             data = pd.DataFrame(data, columns=['ID', 'Label'])
             data.to_csv('results.csv', index=False)
             best_loss = val_loss_epoch
-            torch.save(model, './model.model')
 
     print(val_outputs.reshape(1, -1))
     print(val_targets.reshape(1, -1))
@@ -84,39 +82,35 @@ def train(model, criterion, optimizer, num_epochs):
 # Setting Hyperparameters
 num_epochs = 60
 
-# Using tuned parameters from mel_main.py
-model = MelCNNAdapt(layer1_kernel_size=10, layer1_stride=4, layer1_out_channels=64,
-                    max_pool1_kernel=3, max_pool1_stride=3,
-                    layer2_kernel_size=5, layer2_stride=2, layer2_out_channels=16,
-                    adapt_pool1=8, adapt_pool2=8,
-                    fc1_out=32).to(config.device)
-
+model = MelResNet(in_channels=64, layer1_kernel_size=7, layer1_stride=2,
+                  max_pool1_kernel=3, max_pool1_stride=2,
+                  res_unit1_out=64, res_unit2_out=32, res_unit3_out=32,
+                  res_unit1_stride=2, res_unit2_stride=2, res_unit3_stride=2,
+                  res_unit1_blocks=3, res_unit2_blocks=3, res_unit3_blocks=3).to(config.device)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=0.005)
 train_loss_list, val_loss_list, best_loss = train(model, criterion, optimizer, num_epochs)
 
-
-# plt.plot(range(num_epochs-5), train_loss_list[5:])
-# plt.plot(range(num_epochs-5), val_loss_list[5:])
-# plt.show()
+plt.plot(range(num_epochs - 5), train_loss_list[5:])
+plt.plot(range(num_epochs - 5), val_loss_list[5:])
+plt.show()
 
 data = pd.DataFrame({'train_loss': train_loss_list,
-     'val_loss': val_loss_list
-})
+                     'val_loss': val_loss_list
+                     })
 data.to_csv('loss.csv', index=False)
 print(data)
 
-# Get valence for Test data
-results = []
-with torch.no_grad():
-    for test_inputs, files in test_loader:
-        test_inputs = test_inputs.to(config.device)
-        test_inputs = F.normalize(test_inputs, dim=0)
-        test_outputs = model(test_inputs)
-        # print('asdsad')
-        test_outputs = np.array(test_outputs.squeeze(1).cpu())
-        results.extend(list(zip(files, test_outputs)))
-
-results = pd.DataFrame(results, columns=['ID', 'Label'])
-results.to_csv('results.csv', index=False)
+# data = []
+# with torch.no_grad():
+#     for test_inputs, files in test_loader:
+#         test_inputs = test_inputs.to(config.device)
+#         test_inputs = F.normalize(test_inputs, dim=0)
+#         test_outputs = model(test_inputs)
+#         # print('asdsad')
+#         test_outputs = np.array(test_outputs.squeeze(1).cpu())
+#         data.extend(list(zip(files, test_outputs)))
+#
+# data = pd.DataFrame(data, columns=['ID', 'Label'])
+# data.to_csv('results.csv', index=False)
 # print(data)

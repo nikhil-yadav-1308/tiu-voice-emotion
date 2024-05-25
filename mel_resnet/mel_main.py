@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from mel_config import MelConfig
 from mel_dataloader import data_generator
-from mel_model import MelCNN, MelCNNAdapt
+from mel_model import MelResNet, MelResBlock
 
 config = MelConfig()
 torch.manual_seed(config.seed)
@@ -59,7 +59,6 @@ def train(model, criterion, optimizer, num_epochs):
             print(f"Validation Set: Epoch [{epoch + 1}/{num_epochs}], Loss: {val_loss_epoch:.4f}")
             val_loss_list.append(val_loss_epoch)
 
-        # Get train results
         if val_loss_epoch < best_loss:
             data = []
             with torch.no_grad():
@@ -80,47 +79,75 @@ def train(model, criterion, optimizer, num_epochs):
 
 def tune_models():
     # Setting Hyperparameters
-    num_epochs = 60
-    tune_data = pd.DataFrame(columns=['lr', 'weight_decay', "layer1_kernel_size", "layer1_stride", "layer1_out_channels",
+    num_epochs = 30
+    tune_data = pd.DataFrame(columns=['lr', 'weight_decay', "in_channels", "layer1_kernel_size", "layer1_stride",
                                       'max_pool1_kernel', 'max_pool1_stride',
-                                      "layer2_kernel_size", "layer2_stride", "layer2_out_channels",
-                                      'adapt_pool1', 'adapt_pool2',
-                                      'fc1_out', 'best_loss'])
-    for i in range(100):
-
-        lr = np.random.choice([0.01, 0.001, 0.005])
+                                      'res_unit1_out', 'res_unit2_out', 'res_unit3_out',
+                                      'res_unit1_stride', 'res_unit2_stride', 'res_unit3_stride',
+                                      'res_unit1_blocks', 'res_unit2_blocks', 'res_unit3_blocks', 'best_loss'])
+    for i in range(30):
+        lr = np.random.choice([0.001, 0.005])
         weight_decay = np.random.choice([0.001, 0.005, 0.0001])
-        layer1_kernel_size = np.random.choice([8,10,12,15, 20])
-        layer1_stride = np.random.choice([2,3,4,5])
-        layer1_out_channels = np.random.choice([16,32,64])
-        max_pool1_kernel = np.random.choice([3,4,5])
-        max_pool1_stride = np.random.choice([2,3])
-        layer2_kernel_size = np.random.choice([3,5,8,10])
-        layer2_stride = np.random.choice([2,3,4])
-        layer2_out_channels = np.random.choice([16,32,64])
-        adapt_pool1 = np.random.choice([4,8,10])
-        adapt_pool2 = np.random.choice([4,8,10])
-        fc1_out = np.random.choice([8, 16, 32])
 
-        model = MelCNNAdapt(layer1_kernel_size=layer1_kernel_size, layer1_stride=layer1_stride, layer1_out_channels=layer1_out_channels,
-                            max_pool1_kernel=max_pool1_kernel, max_pool1_stride=max_pool1_stride,
-                            layer2_kernel_size=layer2_kernel_size, layer2_stride=layer2_stride, layer2_out_channels=layer2_out_channels,
-                            adapt_pool1=adapt_pool1, adapt_pool2=adapt_pool2,
-                            fc1_out=fc1_out).to(config.device)
+        in_channels = np.random.choice([16, 32, 64, 128])
+        layer1_kernel_size = np.random.choice([8, 10, 12, 15, 20])
+        layer1_stride = np.random.choice([2, 3, 4, 5])
+        max_pool1_kernel = np.random.choice([3, 4, 5, 10])
+        max_pool1_stride = np.random.choice([2, 3])
+        res_unit1_out = np.random.choice([32, 64])
+        res_unit2_out = np.random.choice([16, 32, 64])
+        res_unit3_out = np.random.choice([16, 32, 64])
+        res_unit1_stride = np.random.choice([1, 2, 3])
+        res_unit2_stride = np.random.choice([1, 2, 3])
+        res_unit3_stride = np.random.choice([1, 2, 3])
+        res_unit1_blocks = np.random.choice([2, 3, 4, 5])
+        res_unit2_blocks = np.random.choice([2, 3, 4, 5])
+        res_unit3_blocks = np.random.choice([2, 3, 4, 5])
+
+        print(lr, weight_decay, in_channels, layer1_kernel_size, layer1_stride,
+                            max_pool1_kernel, max_pool1_stride,
+                            res_unit1_out, res_unit2_out, res_unit3_out,
+                            res_unit1_stride, res_unit2_stride, res_unit3_stride,
+                            res_unit1_blocks, res_unit2_blocks, res_unit3_blocks)
+
+        model = MelResNet(in_channels=in_channels, layer1_kernel_size=layer1_kernel_size, layer1_stride=layer1_stride,
+                          max_pool1_kernel=max_pool1_kernel, max_pool1_stride=max_pool1_stride,
+                          res_unit1_out=res_unit1_out, res_unit2_out=res_unit2_out, res_unit3_out=res_unit3_out,
+                          res_unit1_stride=res_unit1_stride, res_unit2_stride=res_unit2_stride,
+                          res_unit3_stride=res_unit3_stride,
+                          res_unit1_blocks=res_unit1_blocks, res_unit2_blocks=res_unit2_blocks,
+                          res_unit3_blocks=res_unit3_blocks).to(config.device)
         criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         train_loss_list, val_loss_list, best_loss = train(model, criterion, optimizer, num_epochs)
 
-        # plt.plot(range(num_epochs-5), train_loss_list[5:])
-        # plt.plot(range(num_epochs-5), val_loss_list[5:])
+        # plt.plot(range(num_epochs - 5), train_loss_list[5:])
+        # plt.plot(range(num_epochs - 5), val_loss_list[5:])
         # plt.show()
 
-        tune_data.loc[i] = [lr, weight_decay, layer1_kernel_size, layer1_stride, layer1_out_channels,
+        tune_data.loc[i] = [lr, weight_decay, in_channels, layer1_kernel_size, layer1_stride,
                             max_pool1_kernel, max_pool1_stride,
-                            layer2_kernel_size, layer2_stride, layer2_out_channels,
-                            adapt_pool1, adapt_pool2,
-                            fc1_out, best_loss]
+                            res_unit1_out, res_unit2_out, res_unit3_out,
+                            res_unit1_stride, res_unit2_stride, res_unit3_stride,
+                            res_unit1_blocks, res_unit2_blocks, res_unit3_blocks, best_loss]
         tune_data.to_csv('tuning.csv', index=False)
 
+    return tune_data
 
-tune_models()
+
+tune_data = tune_models()
+print(tune_data)
+
+# data = []
+# with torch.no_grad():
+#     for test_inputs, files in test_loader:
+#         test_inputs = test_inputs.to(config.device)
+#         test_inputs = F.normalize(test_inputs, dim=0)
+#         test_outputs = model(test_inputs)
+#         # print('asdsad')
+#         test_outputs = np.array(test_outputs.squeeze(1).cpu())
+#         data.extend(list(zip(files, test_outputs)))
+#
+# data = pd.DataFrame(data, columns=['ID', 'Label'])
+# data.to_csv('results.csv', index=False)
+# print(data)

@@ -22,7 +22,6 @@ class FreqCNN(nn.Module):
         self.fc3 = nn.Linear(16 * 12, 1)
         self.double()
 
-
     def forward(self, x):
         # print(x.shape)
         x = self.layer1(x)
